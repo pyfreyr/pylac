@@ -164,7 +164,7 @@ Fluid 预测不包含在默认的官方镜像，以及默认的源码编译产�
 至此，所有依赖的动态库已经编译完成，可以保存到任何目录。
 
 
-### 5. Python 调用 C
+### 5. Python 调用动态库
 
 Python 通过标准库的 ctypes 调用 C，使用参见官方文档：[ctypes — A foreign function library for Python](https://docs.python.org/3.6/library/ctypes.html)。
 

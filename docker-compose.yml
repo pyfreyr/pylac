@@ -6,5 +6,5 @@ services:
       dockerfile: Dockerfile
     image: pyfreyr/pylac
     ports:
-      - 8002:8888
+      - 8888:8888
     command: python lac_server.py
