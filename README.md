@@ -1,19 +1,19 @@
-# Baidu 中文词法分析（LAC）
+# Baidu 中文词法分析（LAC）的 Python 封装
 
-本项目从源码编译 PaddlePaddle（CPU 版） 和 LAC 成动态库供 Python ctypes 调用，并使用 tornado 封装为 REST API。
+本项目源码编译 PaddlePaddle（CPU 版） 和 LAC 成动态库（`data/lib.tar.gz`），并使用 tornado 封装为 REST API。
 
 
 ## pylac 镜像
 
-- 构建
+构建：
 
-        $ docker build -t pyfreyr/lac .
+    $ docker build -t pyfreyr/lac .
         
-- 运行
+运行：
 
-        $ docker run -d --name lac -p 8888:8888 pyfreyr/lac
-        
-    > 注意：动态库编译使用了 MKL 和 AVX，请确保镜像运行在 CPU 支持的机器上。
+    $ docker run -d --name lac -p 8888:8888 pyfreyr/lac
+    
+**注意**：动态库编译使用了 MKL 和 AVX，请确保镜像运行在 CPU 支持的机器上。
 
 
 ## API 示例
@@ -58,15 +58,15 @@
 ```
 
 
-如果对本项目完整构建过程感兴趣，参考以下详细说明。
+如果对本项目完整构建过程感兴趣，参考以下教程。
 
 ## pylac 服务构建
 
 ### 1. 构建 paddle:dev 镜像
 
-`paddle:dev` 用于后续编译 paddlepaddle 和 lac。
+镜像用于后续编译 paddlepaddle 和 lac。
 
-> 注意切换到 `v.0.14.0` 分支！
+**注意**：切换到 `v.0.14.0` 分支！
 
     $ git clone https://github.com/PaddlePaddle/Paddle.git paddle
     $ cd paddle
@@ -87,7 +87,7 @@
     $ cmake -DCMAKE_BUILD_TYPE=Release -DWITH_AVX=ON -DWITH_MKL=ON -DWITH_MKLDNN=OFF -DWITH_GPU=OFF -DWITH_FLUID_ONLY=ON ..
     $ make -j 8
 
-注意，这里关闭了 GPU 加速，启用 AVX/MKL 等加速环境。
+注意，这里关闭了 GPU 加速，启用 AVX/MKL 加速环境。
 
 编译完成安装 whl：
 
@@ -114,13 +114,13 @@ Fluid 预测不包含在默认的官方镜像，以及默认的源码编译产�
 
 ### 4. 编译 lac
 
-> 注意一定要切换到 `v1.0.0` 分支！
+**注意**：一定要切换到 `v1.0.0` 分支！
 
     $ git clone https://github.com/baidu/lac.git
     $ cd lac
     $ git checkout v1.0.0
     
-如果系统没有安装 git lfs，conf 目录内文件只包含链接，实际的数据需要额外下载：
+如果系统没有安装 [git lfs](https://github.com/git-lfs/git-lfs)，`conf` 目录内文件只包含链接，实际的数据需要额外下载，以 centos 7 为例：
 
     $ curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.rpm.sh | bash
     $ yum install git-lfs
@@ -134,7 +134,7 @@ Fluid 预测不包含在默认的官方镜像，以及默认的源码编译产�
     $ cd ..
     $ docker run -it -v $PWD/paddle:/paddle -v $PWD:/lac paddle:dev /bin/bash
 
-内置 CMakeLists.txt 默认编译静态库，python 与 C 交互只能是动态库，所以修改 `/lac/CMakeLists.txt`：
+内置 CMakeLists.txt 默认编译静态库，python 与 C 交互只能是动态库，所以修改 `CMakeLists.txt`：
 
 
     #add_library(lac ${SOURCE} include/ilac.h)
@@ -166,7 +166,7 @@ Fluid 预测不包含在默认的官方镜像，以及默认的源码编译产�
 
 ### 5. Python 调用动态库
 
-Python 通过标准库的 ctypes 调用 C，使用参见官方文档：[ctypes — A foreign function library for Python](https://docs.python.org/3.6/library/ctypes.html)。
+Python 通过标准库的 ctypes 调用动态库，使用参见官方文档：[ctypes — A foreign function library for Python](https://docs.python.org/3.6/library/ctypes.html)。
 
 lac 对外的 C 接口位于 [include/ilac.h](https://github.com/baidu/lac/blob/master/include/ilac.h)，具体定义了 5 个函数和 1 个结构体：
 
@@ -188,7 +188,7 @@ int lac_tagging(void* lac_handle, void* lac_buff,
 
 通过 ctypes 加载动态库 `liblac.so` 即可调用原生 C 接口，对 lac 的使用参照 [test/src/lac_demo.cpp](https://github.com/baidu/lac/blob/master/test/src/lac_demo.cpp) 实现了 python 版本的 `init_dict`, `destroy_dict` 和 `tagging` 函数，源码参见 [pylac/tag](pylac/tag.py)。
 
-> 这里的 Python 实现删除了 `tagging` 多线程的处理部分。
+**注意**： Python 实现删除了 `tagging` 多线程的处理部分。
 
 
 现在将编译好的 paddle_fluid, mkl, lac 动态库加入环境变量即可运行：
@@ -196,11 +196,11 @@ int lac_tagging(void* lac_handle, void* lac_buff,
     $ export LD_LIBRARY_PATH=/lac/lib
     $ python tag.py
     
-> 如果编译时没有加入 MKL 加速，运行速度会慢很多。
+**注意**： 如果编译时没有加入 MKL 加速，运行速度会慢很多。
 
 ### 6. RESTful API
 
-使用 tornado 启动服务见 [lac_server.py](lac_server.py)，构建 lac 镜像见 [Dockerfile](Dockerfile)。
+使用 tornado 启动服务见 [lac_server.py](lac_server.py)。
 
 
 
