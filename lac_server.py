@@ -12,7 +12,7 @@ base_dir = os.path.abspath(os.path.dirname(__file__))
 
 define('port', default=8888, help='port', type=int)
 
-tagger = LacTagger(os.path.join(base_dir, 'conf'), '/usr/local/lib', 99999)
+tagger = LacTagger(os.path.join(base_dir, 'conf'), 99999)
 tagger.init()
 
 

@@ -22,16 +22,14 @@ class Tag(Structure):
 
 
 class LacTagger(object):
-    def __init__(self, conf_dir, lib_dir, max_result_num=99999):
+    def __init__(self, conf_dir, max_result_num=99999):
         self.conf_dir = conf_dir
-        self.lib_dir = lib_dir
         self.max_result_num = max_result_num
         self.load_library()
         self.build_tag_t()
 
     def load_library(self):
-        self.liblac = pydll.LoadLibrary(
-            os.path.join(self.lib_dir, 'liblac.so'))
+        self.liblac = pydll.LoadLibrary('liblac.so')
 
     def _init_dict(self):
         self.lac_handle = self.liblac.lac_create(self.conf_dir)
@@ -84,7 +82,7 @@ class LacTagger(object):
 
 
 if __name__ == '__main__':
-    tag = LacTagger('../conf', '/usr/local/lib')
+    tag = LacTagger('../conf')
     tag.init()
     res = tag.tagging('我爱北京天安门')
     print(res)
