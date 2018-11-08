@@ -1,14 +1,72 @@
-# BAIDU 中文词法分析（LAC）
+# Baidu 中文词法分析（LAC）
 
-本文介绍从源码编译 CPU 版 PaddlePaddle 和 LAC，最终生成动态库使用 Python ctypes 调用。
+本项目从源码编译 PaddlePaddle（CPU 版） 和 LAC 成动态库供 Python ctypes 调用，并使用 tornado 封装为 REST API。
 
 
+## pylac 镜像
 
-## 1. 构建 paddle:dev 镜像
+- 构建
+
+        $ docker build -t pyfreyr/lac .
+        
+- 运行
+
+        $ docker run -d --name lac -p 8888:8888 pyfreyr/lac
+        
+    > 注意：动态库编译使用了 MKL 和 AVX，请确保镜像运行在 CPU 支持的机器上。
+
+
+## API 示例
+
+    $ curl -X POST http://localhost:8888/lac/v1/tag -d \ '
+    {
+        "text": "我爱北京天安门。"
+    }'
+    
+结果如：
+
+```json
+{
+    "status": 0, 
+    "words": [
+        {
+            "length": 3, 
+            "type": "r", 
+            "name": "我", 
+            "offset": 0
+        }, 
+        {
+            "length": 3, 
+            "type": "v", 
+            "name": "爱", 
+            "offset": 3
+        }, 
+        {
+            "length": 15, 
+            "type": "LOC", 
+            "name": "北京天安门", 
+            "offset": 6
+        }, 
+        {
+            "length": 3, 
+            "type": "w", 
+            "name": "。", 
+            "offset": 21
+        }
+    ]
+}
+```
+
+
+如果对本项目完整构建过程感兴趣，参考以下详细说明。
+
+## pylac 服务构建
+
+### 1. 构建 paddle:dev 镜像
 
 `paddle:dev` 用于后续编译 paddlepaddle 和 lac。
 
-> 注意切换到 `v.0.14.0` 分支！！！
+> 注意切换到 `v.0.14.0` 分支！
 
     $ git clone https://github.com/PaddlePaddle/Paddle.git paddle
     $ cd paddle
@@ -19,7 +77,7 @@
     $ docker build -t paddle:dev --build-arg UBUNTU_MIRROR='http://mirrors.ustc.edu.cn/ubuntu/' .
 
 
-## 2. 编译 paddle 基础库
+### 2. 编译 paddle 基础库
 
 这一步骤会产出 Paddle 的基础库，以及 python 版的 wheel 包。
 
@@ -29,14 +87,14 @@
     $ cmake -DCMAKE_BUILD_TYPE=Release -DWITH_AVX=ON -DWITH_MKL=ON -DWITH_MKLDNN=OFF -DWITH_GPU=OFF -DWITH_FLUID_ONLY=ON ..
     $ make -j 8
 
-注意，这里关闭了 GPU 加速，启用 AVX/MKL 等加速环境。（按照官方 README 是没有 mkl 加速）
+注意，这里关闭了 GPU 加速，启用 AVX/MKL 等加速环境。
 
 编译完成安装 whl：
 
     $ pip install python/dist/paddlepaddle-0.14.0-cp27-cp27mu-linux_x86_64.whl
     
 
-## 3. 编译 fluid 预测库
+### 3. 编译 fluid 预测库
 
 Fluid 预测不包含在默认的官方镜像，以及默认的源码编译产出中。需要单独编译。
 
@@ -54,9 +112,9 @@ Fluid 预测不包含在默认的官方镜像，以及默认的源码编译产�
 完成后退出镜像。
 
 
-## 4. 编译 lac
+### 4. 编译 lac
 
-> 注意一定要切换到 `v1.0.0` 分支！！！
+> 注意一定要切换到 `v1.0.0` 分支！
 
     $ git clone https://github.com/baidu/lac.git
     $ cd lac
@@ -76,7 +134,7 @@ Fluid 预测不包含在默认的官方镜像，以及默认的源码编译产�
     $ cd ..
     $ docker run -it -v $PWD/paddle:/paddle -v $PWD:/lac paddle:dev /bin/bash
 
-默认 lac 编译出来的是静态库，python 与 C 交互只能是动态库，所以修改 `/lac/CMakeLists.txt`：
+内置 CMakeLists.txt 默认编译静态库，python 与 C 交互只能是动态库，所以修改 `/lac/CMakeLists.txt`：
 
 
     #add_library(lac ${SOURCE} include/ilac.h)
@@ -106,7 +164,7 @@ Fluid 预测不包含在默认的官方镜像，以及默认的源码编译产�
 至此，所有依赖的动态库已经编译完成，可以保存到任何目录。
 
 
-## 5. Python 调用 C
+### 5. Python 调用 C
 
 Python 通过标准库的 ctypes 调用 C，使用参见官方文档：[ctypes — A foreign function library for Python](https://docs.python.org/3.6/library/ctypes.html)。
 
@@ -140,67 +198,16 @@ int lac_tagging(void* lac_handle, void* lac_buff,
     
 > 如果编译时没有加入 MKL 加速，运行速度会慢很多。
 
-## 6. RESTful API
+### 6. RESTful API
 
 使用 tornado 启动服务见 [lac_server.py](lac_server.py)，构建 lac 镜像见 [Dockerfile](Dockerfile)。
 
 
-启动镜像：
-
-    $ docker run -d --name lac -p 8888:8888 lac:1.0.0
-
-> 注意：动态库编译使用了 MKL 和 AVX，请确保镜像运行在支持的服务器上。
-
-
-访问服务：
-
-- URL
-
-        http://10.202.81.187:8888/v1/lac/word
-
-- Request
-
-        {
-            "text": "我爱北京天安门。"
-        }
-    
-- Response
- 
-        {
-            "words": [
-                {
-                    "length": 3, 
-                    "type": "r", 
-                    "name": "我", 
-                    "offset": 0
-                }, 
-                {
-                    "length": 3, 
-                    "type": "v", 
-                    "name": "爱", 
-                    "offset": 3
-                }, 
-                {
-                    "length": 15, 
-                    "type": "LOC", 
-                    "name": "北京天安门", 
-                    "offset": 6
-                }, 
-                {
-                    "length": 3, 
-                    "type": "w", 
-                    "name": "。", 
-                    "offset": 21
-                }
-            ], 
-            "success": true
-        }
-
 
 ## CHANGELOG
 
-### 2018-10-23 10:20:28
-- 分词结果输出格式由 tab 分隔的字符串改为 dict
+### 2018-11-8 15:01:27
+- 服务封装 docker 镜像
 
-### 2018-10-23 10:02:07
-- 动态库 lib 和模型数据 conf 上传至[网盘](http://10.202.81.90:8080/apps/files/?dir=/baidu-lac&fileid=670)，另备份地址 [lac 模型和动态库](https://gitlab.gridsum.com/chenfei/baidu-lac/issues/3#note_526232)
+### 2018-10-23 10:20:28
+- 分词结果输出格式由默认 tab 分隔的字符串改为 dict

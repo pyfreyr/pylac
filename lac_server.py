@@ -16,29 +16,26 @@ tagger = LacTagger(os.path.join(base_dir, 'conf'), '/usr/local/lib', 99999)
 tagger.init()
 
 
-class LacWordcut(tornado.web.RequestHandler):
+class LacHandler(tornado.web.RequestHandler):
     def post(self, *args, **kwargs):
         try:
             data = json.loads(self.request.body)
             line = data['text'].encode('utf-8')
         except Exception as e:
             self.set_status(400)
-            self.write(json.dumps(dict(success=False, error=str(e)), indent=4))
+            self.write(json.dumps(dict(status=1, error=e), indent=4))
         else:
-            try:
-                words = tagger.tagging(line)
-                self.write(json.dumps(dict(success=True, words=words),
-                                      ensure_ascii=False, indent=4))
-            except Exception as e:
-                self.set_status(500)
-                self.write(
-                    json.dumps(dict(success=False, error=str(e)), indent=4))
+            words = tagger.tagging(line)
+            self.write(json.dumps(dict(status=0, words=words),
+                                  ensure_ascii=False, indent=4))
 
 
 def make_app():
-    return tornado.web.Application([
-        (r'/lac/v1/tag', LacWordcut, dict())
-    ])
+    return tornado.web.Application(
+        handlers=[
+            (r'/lac/v1/tag', LacHandler, dict())
+        ]
+    )
 
 
 if __name__ == '__main__':
@@ -47,7 +44,7 @@ if __name__ == '__main__':
     app.listen(options.port)
     try:
         tornado.ioloop.IOLoop.current().start()
-    except KeyboardInterrupt:
+    except Exception:
         tornado.ioloop.IOLoop.current().stop()
     finally:
         tagger.close()
